@@ -128,6 +128,9 @@ define(function (require, exports, module) {
         if (elem.primaryKey || !elem.nullable) {
             line += " NOT NULL";
         }
+        if (elem.primaryKey && _type =="INTEGER") {
+            line += " AUTO_INCREMENT";
+        }
         return line;
     };
 
@@ -196,6 +199,23 @@ define(function (require, exports, module) {
         }
     };
 
+    DDLGenerator.prototype.writeComments = function (codeWriter, elem, options) {
+        var self = this;
+        
+        if (options.dbms === "mysql") {
+        } else if (options.dbms === "oracle") {
+            
+            // Columns
+            elem.columns.forEach(function (col) {
+                var documentation = col.documentation;
+                if(!!documentation) {
+                    documentation = "" + documentation;
+                    codeWriter.writeLine("COMMENT ON COLUMN " + elem.name + "." + col.name + " IS '" + documentation.replace(/'/g,"''") + "';");
+                }
+            });
+        }
+    };
+    
     /**
      * Write Table
      * @param {StringWriter} codeWriter
@@ -207,6 +227,7 @@ define(function (require, exports, module) {
         var lines = [],
             primaryKeys = [],
             uniques = [];
+        var documentation="";
 
         // Table
         codeWriter.writeLine("CREATE TABLE " + self.getId(elem.name, options) + " (");
@@ -220,7 +241,10 @@ define(function (require, exports, module) {
             if (col.unique) {
                 uniques.push(self.getId(col.name, options));
             }
-            lines.push(self.getColumnString(col, options));
+            if (options.dbms === "mysql") {
+                documentation=col.documentation?" COMMENT '" + col.documentation.replace(/'/g,"''").replace(/[\r\n]/g,"")+"'":"";
+            }
+            lines.push(self.getColumnString(col, options)+documentation);
         });
 
         // Primary Keys
@@ -289,6 +313,14 @@ define(function (require, exports, module) {
                     self.writeForeignKeys(codeWriter, e, options);
                 }
             });
+            
+            // Comments
+            elem.ownedElements.forEach(function (e) {
+                if (e instanceof type.ERDEntity) {
+                    self.writeComments(codeWriter, e, options);
+                }
+            });
+
             file = FileSystem.getFileForPath(path);
             FileUtils.writeText(file, codeWriter.getData(), true).then(result.resolve, result.reject);
 
