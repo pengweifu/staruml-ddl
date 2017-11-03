@@ -128,7 +128,7 @@ define(function (require, exports, module) {
         if (elem.primaryKey || !elem.nullable) {
             line += " NOT NULL";
         }
-        if (elem.primaryKey && _type =="INTEGER") {
+        if (elem.primaryKey && _type.indexOf("INTEGER") > -1 && options.dbms == 'mysql') {
             line += " AUTO_INCREMENT";
         }
         return line;
